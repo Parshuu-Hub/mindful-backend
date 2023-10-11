@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 require("./db/config");
 const User = require("./db/User");
-const Product = require("./db/Product");
+const Admin = require("./db/Admin");
 const Jwt=require('jsonwebtoken');
 require('dotenv').config();
 const port =process.env.PORT || 9000;
@@ -13,7 +13,7 @@ app.use(express.json());
 app.use(cors());
 
 app.post("/signup", async (req, res) => {
-  let data = new User(req.body);
+  let data = new Admin(req.body);
   data = await data.save();
   data = data.toObject();
   delete data.password;
@@ -27,13 +27,13 @@ app.post("/signup", async (req, res) => {
 
 app.post("/login", async (req, res) => {
   if (req.body.email && req.body.password) {
-    let user = await User.findOne(req.body).select("-password");
-    if (user) {
-      Jwt.sign({user},jwtKey,{expiresIn:"1h"},(err,token)=>{
+    let admin = await Admin.findOne(req.body).select("-password");
+    if (admin) {
+      Jwt.sign({admin},jwtKey,{expiresIn:"1h"},(err,token)=>{
         if(err){
           res.send({ result: "something went wrong" });
         }
-        res.send({user,auth:token});
+        res.send({admin,auth:token});
       })
     } else {
       res.send({ result: "User not found" });
@@ -43,54 +43,54 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.post("/addProduct",verifyToken, async (req, res) => {
-  let product = new Product(req.body);
-  product = await product.save();
-  res.send(product);
+app.post("/addUser",authentication, async (req, res) => {
+  let user = new User(req.body);
+  user = await user.save();
+  res.send(user);
 });
 
-app.get("/products",verifyToken, async (req, res) => {
-  let products = await Product.find();
-  if (products.length > 0) {
-    res.send(products);
+app.get("/usersList",authentication, async (req, res) => {
+  let users = await User.find();
+  if (users.length > 0) {
+    res.send(users);
   } else {
-    res.send({ result: "No products found!" });
+    res.send({ result: "No Data Found!" });
   }
 });
 
-app.delete("/product/:id",verifyToken, async (req, res) => {
-  let result = await Product.deleteOne({ _id: req.params.id });
+app.delete("/user/:id",authentication, async (req, res) => {
+  let result = await User.deleteOne({ _id: req.params.id });
   res.send(result);
 });
 
-app.get("/product/:id", verifyToken,async (req, res) => {
-  let result = await Product.findOne({ _id: req.params.id });
+app.get("/user/:id", authentication,async (req, res) => {
+  let result = await User.findOne({ _id: req.params.id });
   if (result) {
     res.send(result);
   } else {
-    res.send("No record found");
+    res.send("No Data Found!");
   }
 });
 
-app.put('/update/:id',verifyToken,async(req,res)=>{
-  let result=await Product.updateOne(
+app.put('/update/:id',authentication,async(req,res)=>{
+  let result=await User.updateOne(
     {_id:req.params.id},
     {$set:req.body}
   )
   res.send(result);
 })
 
-app.get('/search/:key',verifyToken,async(req,res)=>{
-  let result=await Product.find({
+app.get('/search/:key',authentication,async(req,res)=>{
+  let result=await User.find({
     "$or":[
       {name:{$regex:req.params.key}},
-      {company:{$regex:req.params.key}}
+      {email:{$regex:req.params.key}}
     ]
   })
   res.send(result);
 })
 
-function verifyToken(req,res,next){
+function authentication(req,res,next){
   let token=req.headers['authorization'];
   if(token){
     token=token.split(' ')[1];
@@ -105,5 +105,5 @@ function verifyToken(req,res,next){
     res.status(403).send({result:"Please add token with headers"})
   }
 }
-// console.log(jwtKey);
+
 app.listen(port);
